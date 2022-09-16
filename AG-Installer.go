@@ -32,6 +32,7 @@ func main() {
 	serverIp := cgf.Section("server").Key("ip").String()
 	serverPort := cgf.Section("server").Key("port").String()
 	serverProtocol := cgf.Section("server").Key("protocol").String()
+
 	if serverIp == "" || serverPort == "" || serverProtocol == "" {
 		if serverIp == "" {
 			fmt.Println("[!] Check serverIp setting.ini File")
