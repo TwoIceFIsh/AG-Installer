@@ -7,12 +7,29 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 	"time"
 )
 
+func printCommand(cmd *exec.Cmd) {
+	fmt.Printf("==> Executing: %s\n", strings.Join(cmd.Args, " "))
+}
+func printError(err error) {
+	if err != nil {
+		_, _ = os.Stderr.WriteString(fmt.Sprintf("==> Error: %s\n", err.Error()))
+	}
+}
+
+func printOutput(outs []byte) {
+	if len(outs) > 0 {
+		fmt.Printf("==> Output: %s\n", string(outs))
+	}
+}
+
 func main() {
+	taskName := "AG-Updater"
 	var osv string
 	cgf, err := ini.Load("setting.ini")
 	if err != nil {
@@ -78,14 +95,54 @@ func main() {
 	downURL := serverProtocol + "://" + serverIp + ":" + serverPort + "/" + osv + "/AG-Agent/" + aVer + "/" + aName
 	fmt.Println("[-] Connecting to Server...(10s)")
 	fmt.Println("[-] Downloading...", aName, aVer)
-	value := os.Getenv("ProgramFiles")
 
-	err = os.Mkdir(value+"\\Anti-Gravity", os.ModePerm)
-	if err != nil {
-		fmt.Println(err)
+	// 운영체제에 맞게 다운로드한 파일에 저장
+	switch v {
+	case "windows":
+		value := os.Getenv("ProgramFiles")
+
+		err = os.Mkdir(value+"\\Anti-Gravity", os.ModePerm)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		path, _ := utils.Downloads(downURL, value+"\\Anti-Gravity\\"+aName)
+
+		prog := "SCHTASKS"
+		arguments := []string{}
+		arguments = append(arguments, "/Create")
+		arguments = append(arguments, "/TN")
+		arguments = append(arguments, taskName)
+		arguments = append(arguments, "/SC")
+		arguments = append(arguments, "ONSTART")
+		arguments = append(arguments, "/TR")
+		arguments = append(arguments, path)
+		arguments = append(arguments, "/RL")
+		arguments = append(arguments, "HIGHEST")
+		arguments = append(arguments, "/RU")
+		arguments = append(arguments, "SYSTEM")
+		arguments = append(arguments, "/F")
+
+		cmd := exec.Command(prog, arguments...)
+		printCommand(cmd)
+		outupt, err := cmd.CombinedOutput()
+		printError(err)
+		printOutput(outupt)
+
+		arguments = []string{}
+		arguments = append(arguments, "/Run")
+		arguments = append(arguments, "/TN")
+		arguments = append(arguments, taskName)
+		time.Sleep(5 * time.Second)
+		cmd = exec.Command("SCHTASKS", arguments...)
+
+		printCommand(cmd)
+		outupt, err = cmd.CombinedOutput()
+		printError(err)
+		printOutput(outupt)
+	case "linux":
+		osv = "linux"
 	}
 
-	path, _ := utils.Downloads(downURL, value+"\\"+aName)
-	fmt.Println(path)
-
+	// TODO
 }
