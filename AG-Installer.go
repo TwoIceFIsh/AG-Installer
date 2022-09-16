@@ -29,7 +29,7 @@ func printOutput(outs []byte) {
 }
 
 func main() {
-	taskName := "AG-Updater"
+	taskName := "AG-Agent"
 	var osv string
 	cgf, err := ini.Load("setting.ini")
 	if err != nil {
@@ -132,12 +132,13 @@ func main() {
 		arguments = []string{}
 		arguments = append(arguments, "/Run")
 		arguments = append(arguments, "/TN")
+		arguments = append(arguments, "/I")
 		arguments = append(arguments, taskName)
 		time.Sleep(5 * time.Second)
-		cmd = exec.Command("SCHTASKS", arguments...)
-
-		printCommand(cmd)
-		outupt, err = cmd.CombinedOutput()
+		cmd2 := exec.Command("SCHTASKS", arguments...)
+		//
+		printCommand(cmd2)
+		outupt, err = cmd2.CombinedOutput()
 		printError(err)
 		printOutput(outupt)
 	case "linux":
