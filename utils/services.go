@@ -2,25 +2,43 @@ package utils
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
-	"time"
 )
 
 func printCommand(cmd *exec.Cmd) {
 	fmt.Printf("==> Executing: %s\n", strings.Join(cmd.Args, " "))
 }
-func printError(err error) {
+func printError(err error, taskName string, path string) {
 	if err != nil {
-		_, _ = os.Stderr.WriteString(fmt.Sprintf("==> Error: %s\n", err.Error()))
+		if strings.Contains(err.Error(), "1073") {
+			_ = DeleteService(taskName)
+			_ = AddService(taskName, path)
+			_, _ = fmt.Println("==> Service 갱신 등록", taskName)
+		}
 	}
 }
 
-func printOutput(outs []byte) {
+func printOutput(outs []byte, taskName string) {
 	if len(outs) > 0 {
-		fmt.Printf("==> Output: %s\n", string(outs))
+		if strings.Contains(string(outs), "AntiGravityAgentService") || strings.Contains(string(outs), "AntiGravityUpdateService") {
+			_, _ = fmt.Println("==> Service 시작", taskName)
+		}
 	}
+}
+
+func DeleteService(taskName string) error {
+	prog := "sc.exe"
+	arguments := []string{}
+	arguments = append(arguments, "delete")
+	arguments = append(arguments, taskName)
+
+	cmd2 := exec.Command(prog, arguments...)
+
+	outupt, err := cmd2.CombinedOutput()
+	printError(err, taskName, "")
+	printOutput(outupt, taskName)
+	return err
 }
 
 func RunService(taskName string) error {
@@ -29,12 +47,11 @@ func RunService(taskName string) error {
 	arguments = append(arguments, "start")
 	arguments = append(arguments, taskName)
 
-	time.Sleep(5 * time.Second)
 	cmd2 := exec.Command(prog, arguments...)
-	printCommand(cmd2)
+
 	outupt, err := cmd2.CombinedOutput()
-	printError(err)
-	printOutput(outupt)
+	printError(err, taskName, "")
+	printOutput(outupt, taskName)
 	return err
 }
 
@@ -54,9 +71,9 @@ func AddService(taskName string, path string) error {
 	arguments = append(arguments, taskName)
 
 	cmd := exec.Command(prog, arguments...)
-	printCommand(cmd)
+
 	outupt, err := cmd.CombinedOutput()
-	printError(err)
-	printOutput(outupt)
+	printError(err, taskName, path)
+	printOutput(outupt, taskName)
 	return err
 }

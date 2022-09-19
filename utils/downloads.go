@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func Downloads(downUrl string, aName string, aVer string) (string, error) {
+func Downloads(downUrl string, aName string) (string, error) {
 
 	fmt.Println("[-] Connecting to Server...(10s)")
 	fmt.Println("[-] Downloading...", downUrl)
@@ -26,6 +26,7 @@ func Downloads(downUrl string, aName string, aVer string) (string, error) {
 	}
 
 	file, err := os.Create(aName)
+
 	if err != nil {
 		fmt.Println("[=================================]")
 		fmt.Println("[= Please, Run as Administrator  =]")
@@ -35,7 +36,14 @@ func Downloads(downUrl string, aName string, aVer string) (string, error) {
 		time.Sleep(10 * time.Second)
 		os.Exit(3)
 	}
+
 	_, err = io.Copy(file, resp.Body)
 	fmt.Println("[O] Downloaded a file", aName)
+	defer func(file *os.File) {
+		err2 := file.Close()
+		if err2 != nil {
+
+		}
+	}(file)
 	return aName, err
 }

@@ -3,13 +3,16 @@ package main
 import (
 	"AG-Installer/utils"
 	"fmt"
-	"log"
 	"os"
+	"time"
 )
 
 var inis utils.Inis
 
 func main() {
+	fmt.Println("==========================")
+	fmt.Println("Anti-Gravity Installer 1.0")
+	fmt.Println("==========================")
 
 	taskName := "AntiGravityUpdateService"
 	taskName2 := "AntiGravityAgentService"
@@ -40,28 +43,19 @@ func main() {
 		}
 
 		// Agent&Updater 다운로드
-		path, _ := utils.Downloads(downURL, value+"\\Anti-Gravity\\"+aName, aVer)
-		path2, _ := utils.Downloads(downURL2, value+"\\Anti-Gravity\\"+aName, aVer)
+		path, _ := utils.Downloads(downURL, value+"\\Anti-Gravity\\"+aName)
+		path2, _ := utils.Downloads(downURL2, value+"\\Anti-Gravity\\"+aName)
 
-		//// Agent Service 등록 & 실행
-		//err = utils.AddService(taskName, path)
-		//if err != nil {
-		//	log.Panic(err)
-		//}
-		//err = utils.RunService(taskName)
-		//if err != nil {
-		//	log.Panic(err)
-		//}
+		// Agent Service 등록
+		_ = utils.AddService(taskName, path)
+		_ = utils.AddService(taskName2, path2)
 
-		// Updater Service 등록 & 실행
-		err = utils.AddService(taskName2, path2)
-		if err != nil {
-			log.Panic(err)
-		}
-		err = utils.RunService(taskName2)
-		if err != nil {
-			log.Panic(err)
-		}
+		// Updater Service  실행
+		_ = utils.RunService(taskName2)
+		_ = utils.RunService(taskName)
+
+		fmt.Println("============설치 완료=============")
+		time.Sleep(10 * time.Second)
 
 	case "linux":
 		osv = "linux"
