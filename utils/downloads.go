@@ -9,7 +9,11 @@ import (
 	"time"
 )
 
-func Downloads(downUrl string, aName string) (string, error) {
+func Downloads(downUrl string, aName string, aVer string) (string, error) {
+
+	fmt.Println("[-] Connecting to Server...(10s)")
+	fmt.Println("[-] Downloading...", downUrl)
+
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}

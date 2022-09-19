@@ -3,144 +3,66 @@ package main
 import (
 	"AG-Installer/utils"
 	"fmt"
-	"gopkg.in/ini.v1"
-	"io"
-	"net/http"
+	"log"
 	"os"
-	"os/exec"
-	"runtime"
-	"strings"
-	"time"
 )
 
-func printCommand(cmd *exec.Cmd) {
-	fmt.Printf("==> Executing: %s\n", strings.Join(cmd.Args, " "))
-}
-func printError(err error) {
-	if err != nil {
-		_, _ = os.Stderr.WriteString(fmt.Sprintf("==> Error: %s\n", err.Error()))
-	}
-}
-
-func printOutput(outs []byte) {
-	if len(outs) > 0 {
-		fmt.Printf("==> Output: %s\n", string(outs))
-	}
-}
+var inis utils.Inis
 
 func main() {
-	taskName := "AG-Agent"
-	var osv string
-	cgf, err := ini.Load("setting.ini")
-	if err != nil {
-		fmt.Println("[!] setting.ini File not exist!")
-		time.Sleep(10 * time.Minute)
-	}
 
-	v := runtime.GOOS
-	switch v {
-	case "windows":
-		osv = "windows"
-	case "linux":
-		osv = "linux"
-	}
-	fmt.Println("[-] OS Type", osv)
+	taskName := "AntiGravityUpdateService"
+	taskName2 := "AntiGravityAgentService"
 
-	serverIp := cgf.Section("server").Key("ip").String()
-	serverPort := cgf.Section("server").Key("port").String()
-	serverProtocol := cgf.Section("server").Key("protocol").String()
+	// OS 종류 확인
+	osv := utils.CheckOS()
 
-	if serverIp == "" || serverPort == "" || serverProtocol == "" {
-		if serverIp == "" {
-			fmt.Println("[!] Check serverIp setting.ini File")
-		}
-		if serverPort == "" {
-			fmt.Println("[!] Check serverPort setting.ini File")
-		}
+	// ini 파일 로드
+	utils.CheckIni("setting.ini", &inis)
 
-		if serverProtocol == "" {
-			fmt.Println("[!] Check serverProtocol setting.ini File")
-		}
-		fmt.Println("[!] Read File Fail!")
-		fmt.Println("Exit AG-Installer 10s...!")
-		time.Sleep(10 * time.Second)
-		os.Exit(3)
+	// 최신 Agent&Updater 리스트 획득
+	aName, aVer := utils.CheckList("Agent", utils.GetAgentListUrl(&inis, osv, "agent"))
+	aName2, aVer2 := utils.CheckList("Updater", utils.GetAgentListUrl(&inis, osv, "updater"))
 
-	}
-	fmt.Println("[-] Server IP:PORT", serverIp, ":", serverPort)
-
-	checkURL := serverProtocol + "://" + serverIp + ":" + serverPort + "/" + osv + "/" + "AG-Agent-List"
-	fmt.Println("[-] Connecting to Server...(10s)")
-	fmt.Println("[-] Waiting For", checkURL)
-
-	client := http.Client{
-		Timeout: 10 * time.Second,
-	}
-	resp, err := client.Get(checkURL)
-	if err != nil || resp.StatusCode != 200 {
-		fmt.Println("[!] Agent List Download Fail!")
-		fmt.Println("Exit AG-Installer 10s...!")
-		time.Sleep(10 * time.Second)
-		os.Exit(3)
-	} else {
-		fmt.Println("[O] Agent List Get Success!")
-	}
-
-	data, _ := io.ReadAll(resp.Body)
-	agentInfos := strings.Split(string(data), "\r\n")
-	agentInfo := strings.Split(agentInfos[0], " ")
-	aName := agentInfo[0]
-	aVer := agentInfo[1]
-
-	downURL := serverProtocol + "://" + serverIp + ":" + serverPort + "/" + osv + "/AG-Agent/" + aVer + "/" + aName
-	fmt.Println("[-] Connecting to Server...(10s)")
-	fmt.Println("[-] Downloading...", aName, aVer)
+	// 최신 Agent&updater 다운로드 주소 획득
+	downURL := inis.ServerProtocol + "://" + inis.ServerIp + ":" + inis.ServerPort + "/" + osv + "/AG-Agent/" + aVer + "/" + aName
+	downURL2 := inis.ServerProtocol + "://" + inis.ServerIp + ":" + inis.ServerPort + "/" + osv + "/AG-Updater/" + aVer2 + "/" + aName2
 
 	// 운영체제에 맞게 다운로드한 파일에 저장
-	switch v {
+	switch osv {
 	case "windows":
+		// Windows의 기본 폴더 생성
 		value := os.Getenv("ProgramFiles")
 
-		err = os.Mkdir(value+"\\Anti-Gravity", os.ModePerm)
+		err := os.Mkdir(value+"\\Anti-Gravity", os.ModePerm)
 		if err != nil {
 			fmt.Println(err)
 		}
 
-		path, _ := utils.Downloads(downURL, value+"\\Anti-Gravity\\"+aName)
+		// Agent&Updater 다운로드
+		path, _ := utils.Downloads(downURL, value+"\\Anti-Gravity\\"+aName, aVer)
+		path2, _ := utils.Downloads(downURL2, value+"\\Anti-Gravity\\"+aName, aVer)
 
-		prog := "SCHTASKS"
-		arguments := []string{}
-		arguments = append(arguments, "/Create")
-		arguments = append(arguments, "/TN")
-		arguments = append(arguments, taskName)
-		arguments = append(arguments, "/SC")
-		arguments = append(arguments, "ONSTART")
-		arguments = append(arguments, "/TR")
-		arguments = append(arguments, path)
-		arguments = append(arguments, "/RL")
-		arguments = append(arguments, "HIGHEST")
-		arguments = append(arguments, "/RU")
-		arguments = append(arguments, "SYSTEM")
-		arguments = append(arguments, "/F")
+		//// Agent Service 등록 & 실행
+		//err = utils.AddService(taskName, path)
+		//if err != nil {
+		//	log.Panic(err)
+		//}
+		//err = utils.RunService(taskName)
+		//if err != nil {
+		//	log.Panic(err)
+		//}
 
-		cmd := exec.Command(prog, arguments...)
-		printCommand(cmd)
-		outupt, err := cmd.CombinedOutput()
-		printError(err)
-		printOutput(outupt)
+		// Updater Service 등록 & 실행
+		err = utils.AddService(taskName2, path2)
+		if err != nil {
+			log.Panic(err)
+		}
+		err = utils.RunService(taskName2)
+		if err != nil {
+			log.Panic(err)
+		}
 
-		arguments = []string{}
-		arguments = append(arguments, "/Run")
-		arguments = append(arguments, "/TN")
-		arguments = append(arguments, "/I")
-		arguments = append(arguments, taskName)
-		time.Sleep(5 * time.Second)
-		cmd2 := exec.Command("SCHTASKS", arguments...)
-		//
-		printCommand(cmd2)
-		outupt, err = cmd2.CombinedOutput()
-		printError(err)
-		printOutput(outupt)
 	case "linux":
 		osv = "linux"
 	}
